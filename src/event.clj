@@ -24,6 +24,24 @@
      #(apply events-overlap? %)
      (pairs events))))
 
+(defn somewhat-faster-overlapping-events
+  "Given a sequence of events, returns all pairs of overlapping events."
+  [events]
+  (letfn [(events-overlap?
+            [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
+            (and (< (compare start-1 end-2) 0)
+                 (< (compare start-2 end-1) 0)))]
+    (loop [[head & tail] events
+           pairs (list)]
+      (if (nil? tail)
+        pairs
+        (recur tail (apply conj
+                           pairs
+                           (into (list)
+                                 (comp
+                                  (map #(list head %))
+                                  (filter #(apply events-overlap? %)))
+                                 tail)))))))
 ;; Specs
 (def comparable? (partial instance? Comparable))
 
