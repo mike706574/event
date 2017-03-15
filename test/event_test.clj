@@ -69,9 +69,13 @@
   [pairs]
   (map #(map :event/name %) pairs))
 
+(defn as-sets
+  [pairs]
+  (into #{} (map #(into #{} %) pairs)))
+
 ;; NOTE: These tests aren't the greatest in the world - we probably don't
 ;; care about the order in which the pairs are returned.
-(deftest finding-somewhat-faster-overlapping-events
+(deftest finding-overlapping-events
   (testing "no events"
     (is (= []
            (somewhat-faster-overlapping-events []))
@@ -83,32 +87,36 @@
         "When there is only one event, it has no other events to overlap with."))
 
   (testing "two events, first event starts and ends before second event begins"
-    (is (= []
-           (somewhat-faster-overlapping-events
-            [{:event/name "Dentist" :event/start 1 :event/end 2}
-             {:event/name "Haircut" :event/start 3 :event/end 4}]))))
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
+                {:event/name "Haircut" :event/start 3 :event/end 4}]
+               (somewhat-faster-overlapping-events)
+               (as-sets)))))
 
   (testing "two events, first event starts after second event ends"
-    (is (= []
-           (somewhat-faster-overlapping-events
-            [{:event/name "Dentist" :event/start 3 :event/end 4}
-             {:event/name "Haircut" :event/start 1 :event/end 2}]))))
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
+                {:event/name "Haircut" :event/start 1 :event/end 2}]
+               (somewhat-faster-overlapping-events)
+               (as-sets)))))
 
   (testing "first event ends when second event starts"
-    (is (= []
-           (somewhat-faster-overlapping-events
-            [{:event/name "Dentist" :event/start 1 :event/end 2}
-             {:event/name "Haircut" :event/start 2 :event/end 3}]))))
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
+                {:event/name "Haircut" :event/start 2 :event/end 3}]
+               (somewhat-faster-overlapping-events)
+               (as-sets)))))
 
   (testing "first event starts when second event ends"
-    (is (= []
-           (somewhat-faster-overlapping-events
-            [{:event/name "Dentist" :event/start 3 :event/end 4}
-             {:event/name "Haircut" :event/start 1 :event/end 2}]))))
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
+                {:event/name "Haircut" :event/start 1 :event/end 2}]
+               (somewhat-faster-overlapping-events)
+               (as-sets)))))
 
   (testing "an event will always overlap with itself"
-    (is (= [[{:event/name "Dentist" :event/start 1 :event/end 2}
-             {:event/name "Dentist" :event/start 1 :event/end 2}]]
+    (is (= [{:event/name "Dentist" :event/start 1 :event/end 2}
+            {:event/name "Dentist" :event/start 1 :event/end 2}]
            (somewhat-faster-overlapping-events
             [{:event/name "Dentist" :event/start 1 :event/end 2}
              {:event/name "Dentist" :event/start 1 :event/end 2}]))))
