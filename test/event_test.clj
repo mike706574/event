@@ -115,8 +115,8 @@
                (as-sets)))))
 
   (testing "an event will always overlap with itself"
-    (is (= [{:event/name "Dentist" :event/start 1 :event/end 2}
-            {:event/name "Dentist" :event/start 1 :event/end 2}]
+    (is (= [[{:event/name "Dentist" :event/start 1 :event/end 2}
+              {:event/name "Dentist" :event/start 1 :event/end 2}]]
            (somewhat-faster-overlapping-events
             [{:event/name "Dentist" :event/start 1 :event/end 2}
              {:event/name "Dentist" :event/start 1 :event/end 2}]))))
