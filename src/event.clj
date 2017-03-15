@@ -1,8 +1,7 @@
 (ns event
   "Contains the solution."
   (:require
-   [clojure.spec :as s]
-   [clojure.spec.test :as stest]))
+   [clojure.spec :as s]))
 
 ;; Function
 (defn overlapping-events
