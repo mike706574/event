@@ -140,8 +140,8 @@
               (take 10 (repeat event)))))))
 
   (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "C" 6 10) (new-event "D" 7 8)]
-            [(new-event "A" 1 3) (new-event "B" 2 4)]]
+    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
+            [(new-event "C" 6 10) (new-event "D" 7 8)]]
            (somewhat-faster-overlapping-events
             [(new-event "A" 1 3)
              (new-event "B" 2 4)
@@ -149,8 +149,8 @@
              (new-event "D" 7 8)]))))
 
   (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "B" 2 4) (new-event "C" 3 6)]
-            [(new-event "A" 1 3) (new-event "B" 2 4)]]
+    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
+            [(new-event "B" 2 4) (new-event "C" 3 6)]]
            (somewhat-faster-overlapping-events
             [(new-event "A" 1 3)
              (new-event "B" 2 4)
@@ -158,7 +158,8 @@
              (new-event "D" 10 12)]))))
 
   (testing "fours events, two overlapping pairs"
-    (is (= [["B" "C"] ["A" "B"]]
+    (is (= [["A" "B"]
+            ["B" "C"]]
            (-> [(new-event "A" 1 3)
                 (new-event "B" 2 4)
                 (new-event "C" 3 6)
@@ -166,9 +167,9 @@
                (somewhat-faster-overlapping-events)
                (just-names)))))
 
-  (is (= [["90-93" "January 1990"]
+  (is (= [["Haircut" "Dentist"]
           ["80s" "82-84"]
-          ["Haircut" "Dentist"]]
+          ["90-93" "January 1990"]]
          (-> events
              (somewhat-faster-overlapping-events)
              (just-names))))

@@ -14,12 +14,12 @@
           (pairs
             [coll]
             (loop [[head & tail] coll
-                   pairs (list)]
+                   pairs []]
               (if (nil? tail)
                 pairs
                 (recur tail (apply conj
                                    pairs
-                                   (map #(list head %) tail))))))]
+                                   (map #(vec head %) tail))))))]
     (filter
      #(apply events-overlap? %)
      (pairs events))))
@@ -32,14 +32,14 @@
             (and (< (compare start-1 end-2) 0)
                  (< (compare start-2 end-1) 0)))]
     (loop [[head & tail] events
-           pairs (list)]
+           pairs []]
       (if (nil? tail)
         pairs
         (recur tail (apply conj
                            pairs
-                           (into (list)
+                           (into []
                                  (comp
-                                  (map #(list head %))
+                                  (map #(vector head %))
                                   (filter #(apply events-overlap? %)))
                                  tail)))))))
 ;; Specs
