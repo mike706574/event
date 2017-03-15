@@ -30,7 +30,7 @@
 ;; but it really doesn't matter what we use as long as it's comparable. I'll use
 ;; numbers for testing and switch to using java.util.Date instances later.
 
-;; So this is what an event that starts at 5 and ends looks like:
+;; So this is what an event that starts at 5 and ends at 6 looks like:
 
 {::name "Dentist"
  ::start 5
@@ -57,9 +57,9 @@
 ;;            :start 25197,
 ;;            :end -321318}
 
-;; To me, the most obvious solution, brute force solution is to take all
-;; possible pairs of events and determine if they overlap. We'll need two
-;; smaller functions:
+;; To me, the most obvious, brute force solution is to take all possible                                                                    
+;; possible pairs of events and determine if they overlap one by one. We'll need                                                              
+;; twos maller functions:   
 
 ;; 1) a predicate for determining if two events overlap
 ;; 2) a function for generating all possible pairs of events
@@ -128,10 +128,10 @@
 (declare overlapping-events)
 
 ;; I can think of one property we can always check: the number of overlapping
-;; pairs will always be between 0pairs of events found will be between 0 and
-;; number of combinations of size 2 taken from the sequence of all events.
+;; pairs will always be between 0 and the number of combinations of size 2 taken 
+;; from the sequence of all events.
 
-;; We can some math formulas to figure that out:
+;; We can some mathy functions to calculate that upper bound:
 (defn factorial
   "Returns the factorial of n."
   [n]
@@ -167,7 +167,7 @@
 (combo/combinations [1 1 1] 2)
 ;; => ((1 1))
 
-;; This does what we want:
+;; This should do what we want:
 (defn pairs
   [coll]
   (loop [[head & tail] coll
@@ -178,11 +178,13 @@
                          pairs
                          (map #(list head %) tail))))))
 
+;; Check it:
 (pairs [1 1 1])
-;; => (pairs [1 1 1])
+;; => ((1 1) (1 1) (1 1))
 
-;; That one does what we want.
+;; It works!
 
+;; Make a helper function for constructing events:
 (defn new-event
   "Constructs an event."
   [nm start end]
@@ -191,7 +193,8 @@
 ;; Write some tests by hand.
 
 ;; NOTE: These tests aren't the greatest in the world - we probably don't
-;; care about the order in which the pairs are returned.
+;; care about the order in which the pairs are returned, but we're asserting
+;; it here.
 (deftest finding-find--overlapping-events
   (testing "no events"
     (is (= []
