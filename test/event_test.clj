@@ -3,7 +3,7 @@
    [clojure.spec :as s]
    [clojure.spec.test :as stest]
    [clojure.test :refer [deftest testing is]]
-   [event :as event :refer [somewhat-faster-overlapping-events
+   [event :as event :refer [overlapping-events
                             somewhat-faster-overlapping-events]]))
 
 (defn new-event
@@ -53,16 +53,15 @@
 
 (stest/instrument)
 
-
-(time (do (-> (take 500 (repeat (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))))
-              (somewhat-faster-overlapping-events))
-          nil))
+(comment
+  (time (do (-> (take 500 (repeat (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))))
+                (somewhat-faster-overlapping-events))
+            nil))
   ;; => "Elapsed time: 422.343765 msecs"
 
-(time (do (-> (take 300 (repeat (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))))
-              (somewhat-faster-overlapping-events))
-          nil))
-
+  (time (do (-> (take 300 (repeat (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))))
+                (somewhat-faster-overlapping-events))
+            nil)))
 
 
 (defn just-names
@@ -116,7 +115,7 @@
 
   (testing "an event will always overlap with itself"
     (is (= [[{:event/name "Dentist" :event/start 1 :event/end 2}
-              {:event/name "Dentist" :event/start 1 :event/end 2}]]
+             {:event/name "Dentist" :event/start 1 :event/end 2}]]
            (somewhat-faster-overlapping-events
             [{:event/name "Dentist" :event/start 1 :event/end 2}
              {:event/name "Dentist" :event/start 1 :event/end 2}]))))

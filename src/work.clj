@@ -57,9 +57,9 @@
 ;;            :start 25197,
 ;;            :end -321318}
 
-;; To me, the most obvious, brute force solution is to take all possible                                                                    
-;; possible pairs of events and determine if they overlap one by one. We'll need                                                              
-;; twos maller functions:   
+;; To me, the most obvious, brute force solution is to take all possible
+;; possible pairs of events and determine if they overlap one by one. We'll need
+;; twos maller functions:
 
 ;; 1) a predicate for determining if two events overlap
 ;; 2) a function for generating all possible pairs of events
@@ -112,8 +112,8 @@
 (defn events-overlap?
   "Returns true if the two events overlap, otherwise false."
   [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
-  (and (< (compare start-1 end-2) 0)
-       (< (compare start-2 end-1) 0)))
+  (and (neg? (compare start-1 end-2))
+       (neg? (compare start-2 end-1))))
 
 ;; We can also test with test.check:
 ;; (stest/check `events-overlap?)
@@ -128,7 +128,7 @@
 (declare overlapping-events)
 
 ;; I can think of one property we can always check: the number of overlapping
-;; pairs will always be between 0 and the number of combinations of size 2 taken 
+;; pairs will always be between 0 and the number of combinations of size 2 taken
 ;; from the sequence of all events.
 
 ;; We can some mathy functions to calculate that upper bound:
@@ -317,7 +317,7 @@
      (.clear)
      (.set year month day))))
 
-(defn time
+(defn specific-time
   "Creates a java.util.Date for a time, down to the second."
   [year month day hour min sec]
   (.getTime
@@ -331,21 +331,22 @@
     (println (str "Event \"" (::name a) "\" conflicts with \"" (::name b) "\"."))))
 
 (def events
-  [(new-event "Party" (time 2017 4 13 12 0 0) (time 2017 4 13 14 0 0))
-   (new-event "Meeting" (time 2017 3 9 8 30 0) (time 2017 3 9 9 0 0))
-   (new-event "Haircut" (time 2017 3 9 9 15 0) (time 2017 3 9 9 45 0))
-   (new-event "Dentist" (time 2017 3 9 9 0 0) (time 2017 3 9 9 30 0))
+  [(new-event "Party" (specific-time 2017 4 13 12 0 0) (specific-time 2017 4 13 14 0 0))
+   (new-event "Meeting" (specific-time 2017 3 9 8 30 0) (specific-time 2017 3 9 9 0 0))
+   (new-event "Haircut" (specific-time 2017 3 9 9 15 0) (specific-time 2017 3 9 9 45 0))
+   (new-event "Dentist" (specific-time 2017 3 9 9 0 0) (specific-time 2017 3 9 9 30 0))
    (new-event "80s" (year 1980) (year 1989))
    (new-event "82-84" (year 1982) (year 1984))
    (new-event "90-93" (year 1990) (year 1993))
    (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))])
 
-(-> events
-    (overlapping-events)
-    (print-conflicts))
+(comment
+  (-> events
+      (overlapping-events)
+      (print-conflicts))
+  ;; => Event "90-93" conflicts with "January 1990".
+  ;;    Event "80s" conflicts with "82-84".
+  ;;    Event "Haircut" conflicts with "Dentist".
 
-;; => Event "90-93" conflicts with "January 1990".
-;;    Event "80s" conflicts with "82-84".
-;;    Event "Haircut" conflicts with "Dentist".
-
-;; It "seems" to work.
+  ;; It "seems" to work.
+  )

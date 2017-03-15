@@ -9,8 +9,8 @@
   [events]
   (letfn [(events-overlap?
             [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
-            (and (< (compare start-1 end-2) 0)
-                 (< (compare start-2 end-1) 0)))
+            (and (neg? (compare start-1 end-2))
+                 (neg? (compare start-2 end-1))))
           (pairs
             [coll]
             (loop [[head & tail] coll
@@ -19,7 +19,7 @@
                 pairs
                 (recur tail (apply conj
                                    pairs
-                                   (map #(vec head %) tail))))))]
+                                   (map #(vector head %) tail))))))]
     (filter
      #(apply events-overlap? %)
      (pairs events))))
@@ -29,8 +29,8 @@
   [events]
   (letfn [(events-overlap?
             [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
-            (and (< (compare start-1 end-2) 0)
-                 (< (compare start-2 end-1) 0)))]
+            (and (neg? (compare start-1 end-2))
+                 (neg? (compare start-2 end-1))))]
     (loop [[head & tail] events
            pairs []]
       (if (nil? tail)
