@@ -46,9 +46,9 @@
 (defn even-faster-overlapping-events
   "Given a sequence of events, returns all pairs of overlapping events.
 
-  Sorts the events by start time, then iterates over them, gathering subsequent
-  overlapping events after the current event until an event that does not
-  conflict is found."
+  Sorts the events by start time, then iterates through them. For each event,
+  gathers subsequent overlapping events until an event that does not conflict is
+  found."
   [events]
   (letfn [(events-overlap?
             [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
