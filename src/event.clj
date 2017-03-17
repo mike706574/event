@@ -54,7 +54,7 @@
             [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
             (and (< (compare start-1 end-2) 0)
                  (< (compare start-2 end-1) 0)))]
-    (let [sorted-events (vec (sort-by ::start (shuffle events)))]
+    (let [sorted-events (vec (sort-by ::start events))]
       (reduce
        (fn [pairs n]
          (let [n-event (get sorted-events n)]
