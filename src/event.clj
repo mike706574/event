@@ -42,12 +42,40 @@
                                   (map #(vector head %))
                                   (filter #(apply events-overlap? %)))
                                  tail)))))))
+
+(defn even-faster-overlapping-events
+  "Given a sequence of events, returns all pairs of overlapping events.
+
+  Sorts the events by start time, then iterates over them, gathering subsequent
+  overlapping events after the current event until an event that does not
+  conflict is found."
+  [events]
+    (letfn [(events-overlap?
+            [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
+            (and (< (compare start-1 end-2) 0)
+                 (< (compare start-2 end-1) 0)))]
+      (let [sorted-events (vec (sort-by ::start (shuffle events)))]
+        (reduce
+         (fn [pairs n]
+           (let [n-event (get sorted-events n)]
+             (loop [m (inc n)
+                    pairs pairs]
+               (let [m-event (get sorted-events m)]
+                 (if (events-overlap? n-event m-event)
+                   (recur (inc m) (conj pairs [n-event m-event]))
+                   pairs)))))
+         []
+         (range (count sorted-events))))))
+
+
 ;; Specs
 (def comparable? (partial instance? Comparable))
 
 (s/def ::name string?)
-(s/def ::start comparable?)
-(s/def ::end comparable?)
+
+;; Changing these to integers for now so we can generate events...
+(s/def ::start integer?)
+(s/def ::end integer?)
 
 (defn end-after-start?
   [{:keys [::start ::end]}]

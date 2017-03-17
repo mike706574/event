@@ -4,7 +4,8 @@
    [clojure.spec.test :as stest]
    [clojure.test :refer [deftest testing is]]
    [event :as event :refer [overlapping-events
-                            somewhat-faster-overlapping-events]]))
+                            somewhat-faster-overlapping-events
+                            even-faster-overlapping-events]]))
 
 (defn new-event
   "Constructs an event."
@@ -41,6 +42,121 @@
   (doseq [[a b] pairs]
     (println (str "Event \"" (:event/name a) "\" conflicts with \"" (:event/name b) "\"."))))
 
+
+(defn just-names
+  [pairs]
+  (into (empty pairs) (map #(into (empty %) (map :event/name %)) pairs)))
+
+(defn as-sets
+  [pairs]
+  (into #{} (map #(into #{} %) pairs)))
+
+;; NOTE: These tests aren't the greatest in the world - we probably don't
+;; care about the order in which the pairs are returned.
+(deftest no-events
+  (testing "no events"
+    (is (= []
+           (even-faster-overlapping-events []))
+        "When there are no events, nothing will overlap.")))
+
+(deftest one-event
+  (testing "one event"
+    (is (= []
+           (even-faster-overlapping-events [{:event/name "Dentist" :event/start 1 :event/end 2}]))
+        "When there is only one event, it has no other events to overlap with.")))
+
+(deftest two-events-first-before
+  (testing "two events, first event starts and ends before second event begins"
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
+                {:event/name "Haircut" :event/start 3 :event/end 4}]
+               even-faster-overlapping-events
+               as-sets)))))
+
+(deftest two-events-first-after
+  (testing "two events, first event starts after second event ends"
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
+                {:event/name "Haircut" :event/start 1 :event/end 2}]
+               even-faster-overlapping-events
+               as-sets)))))
+
+(deftest two-events-first-adjacent
+  (testing "first event ends when second event starts"
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
+                {:event/name "Haircut" :event/start 2 :event/end 3}]
+               even-faster-overlapping-events
+               as-sets)))))
+
+(deftest two-events-second-adjacent
+  (testing "first event starts when second event ends"
+    (is (= #{}
+           (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
+                {:event/name "Haircut" :event/start 1 :event/end 2}]
+               even-faster-overlapping-events
+               as-sets)))))
+
+(deftest event-overlap-identity
+  (testing "an event will always overlap with itself"
+    (is (= [[{:event/name "Dentist" :event/start 1 :event/end 2}
+             {:event/name "Dentist" :event/start 1 :event/end 2}]]
+           (even-faster-overlapping-events
+            [{:event/name "Dentist" :event/start 1 :event/end 2}
+             {:event/name "Dentist" :event/start 1 :event/end 2}])))))
+
+(deftest first-ends-during-second
+  (testing "first event ends during second event"
+    (is (= #{#{{:event/name "Dentist" :event/start 1 :event/end 3}
+               {:event/name "Haircut" :event/start 2 :event/end 4}}}
+           (-> [{:event/name "Dentist" :event/start 1 :event/end 3}
+                {:event/name "Haircut" :event/start 2 :event/end 4}]
+               even-faster-overlapping-events
+               as-sets)))))
+
+(deftest first-starts-during-second
+  (testing "first event starts during second event"
+    (is (= #{#{{:event/name "Dentist" :event/start 2 :event/end 4}
+                {:event/name "Haircut" :event/start 1 :event/end 3}}}
+           (-> [{:event/name "Dentist" :event/start 2 :event/end 4}
+              {:event/name "Haircut" :event/start 1 :event/end 3}]
+               even-faster-overlapping-events
+               as-sets)))))
+
+(deftest four-duplicates
+  (testing "four duplicate events produce six overlapping pairs "
+    (let [event {:event/name "Dentist" :event/start 2 :event/end 4}]
+      (is (= (take 6 (repeat [event event]))
+             (even-faster-overlapping-events
+              (take 4 (repeat event))))))))
+
+(deftest ten-duplicates
+  (testing "ten duplicate events produce forty-five overlapping pairs "
+    (let [event {:event/name "Dentist" :event/start 2 :event/end 4}]
+      (is (= (take 45 (repeat [event event]))
+             (even-faster-overlapping-events
+              (take 10 (repeat event))))))))
+
+(deftest four-events-two-overlaps
+  (testing "fours events, two overlapping pairs"
+    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
+            [(new-event "C" 6 10) (new-event "D" 7 8)]]
+           (even-faster-overlapping-events
+            [(new-event "A" 1 3)
+             (new-event "B" 2 4)
+             (new-event "C" 6 10)
+             (new-event "D" 7 8)])))))
+
+(deftest four-events-double-overlap
+  (testing "fours events, two overlapping pairs"
+    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
+            [(new-event "B" 2 4) (new-event "C" 3 6)]]
+           (even-faster-overlapping-events
+            [(new-event "A" 1 3)
+             (new-event "B" 2 4)
+             (new-event "C" 3 6)
+             (new-event "D" 10 12)])))))
+
 (def events
   [(new-event "Party" (specific-time 2017 4 13 12 0 0) (specific-time 2017 4 13 14 0 0))
    (new-event "Meeting" (specific-time 2017 3 9 8 30 0) (specific-time 2017 3 9 9 0 0))
@@ -51,133 +167,11 @@
    (new-event "90-93" (year 1990) (year 1993))
    (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))])
 
-(stest/instrument)
-
-(comment
-  (time (do (-> (take 500 (repeat (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))))
-                (somewhat-faster-overlapping-events))
-            nil))
-  ;; => "Elapsed time: 422.343765 msecs"
-
-  (time (do (-> (take 300 (repeat (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))))
-                (somewhat-faster-overlapping-events))
-            nil)))
-
-
-(defn just-names
-  [pairs]
-  (map #(map :event/name %) pairs))
-
-(defn as-sets
-  [pairs]
-  (into #{} (map #(into #{} %) pairs)))
-
-;; NOTE: These tests aren't the greatest in the world - we probably don't
-;; care about the order in which the pairs are returned.
-(deftest finding-overlapping-events
-  (testing "no events"
-    (is (= []
-           (somewhat-faster-overlapping-events []))
-        "When there are no events, nothing will overlap."))
-
-  (testing "one event"
-    (is (= []
-           (somewhat-faster-overlapping-events [{:event/name "Dentist" :event/start 1 :event/end 2}]))
-        "When there is only one event, it has no other events to overlap with."))
-
-  (testing "two events, first event starts and ends before second event begins"
-    (is (= #{}
-           (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
-                {:event/name "Haircut" :event/start 3 :event/end 4}]
-               (somewhat-faster-overlapping-events)
-               (as-sets)))))
-
-  (testing "two events, first event starts after second event ends"
-    (is (= #{}
-           (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
-                {:event/name "Haircut" :event/start 1 :event/end 2}]
-               (somewhat-faster-overlapping-events)
-               (as-sets)))))
-
-  (testing "first event ends when second event starts"
-    (is (= #{}
-           (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
-                {:event/name "Haircut" :event/start 2 :event/end 3}]
-               (somewhat-faster-overlapping-events)
-               (as-sets)))))
-
-  (testing "first event starts when second event ends"
-    (is (= #{}
-           (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
-                {:event/name "Haircut" :event/start 1 :event/end 2}]
-               (somewhat-faster-overlapping-events)
-               (as-sets)))))
-
-  (testing "an event will always overlap with itself"
-    (is (= [[{:event/name "Dentist" :event/start 1 :event/end 2}
-             {:event/name "Dentist" :event/start 1 :event/end 2}]]
-           (somewhat-faster-overlapping-events
-            [{:event/name "Dentist" :event/start 1 :event/end 2}
-             {:event/name "Dentist" :event/start 1 :event/end 2}]))))
-
-  (testing "first event ends during second event"
-    (is (= [[{:event/name "Dentist" :event/start 1 :event/end 3}
-             {:event/name "Haircut" :event/start 2 :event/end 4}]]
-           (somewhat-faster-overlapping-events
-            [{:event/name "Dentist" :event/start 1 :event/end 3}
-             {:event/name "Haircut" :event/start 2 :event/end 4}]))))
-
-  (testing "first event starts during second event"
-    (is (= [[{:event/name "Dentist" :event/start 2 :event/end 4}
-             {:event/name "Haircut" :event/start 1 :event/end 3}]]
-           (somewhat-faster-overlapping-events
-            [{:event/name "Dentist" :event/start 2 :event/end 4}
-             {:event/name "Haircut" :event/start 1 :event/end 3}]))))
-
-  (testing "four duplicate events produce six overlapping pairs "
-    (let [event {:event/name "Dentist" :event/start 2 :event/end 4}]
-      (is (= (take 6 (repeat [event event]))
-             (somewhat-faster-overlapping-events
-              (take 4 (repeat event)))))))
-
-  (testing "ten duplicate events produce forty-five overlapping pairs "
-    (let [event {:event/name "Dentist" :event/start 2 :event/end 4}]
-      (is (= (take 45 (repeat [event event]))
-             (somewhat-faster-overlapping-events
-              (take 10 (repeat event)))))))
-
-  (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
-            [(new-event "C" 6 10) (new-event "D" 7 8)]]
-           (somewhat-faster-overlapping-events
-            [(new-event "A" 1 3)
-             (new-event "B" 2 4)
-             (new-event "C" 6 10)
-             (new-event "D" 7 8)]))))
-
-  (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
-            [(new-event "B" 2 4) (new-event "C" 3 6)]]
-           (somewhat-faster-overlapping-events
-            [(new-event "A" 1 3)
-             (new-event "B" 2 4)
-             (new-event "C" 3 6)
-             (new-event "D" 10 12)]))))
-
-  (testing "fours events, two overlapping pairs"
-    (is (= [["A" "B"]
-            ["B" "C"]]
-           (-> [(new-event "A" 1 3)
-                (new-event "B" 2 4)
-                (new-event "C" 3 6)
-                (new-event "D" 10 12)]
-               (somewhat-faster-overlapping-events)
-               (just-names)))))
-
-  (is (= [["Haircut" "Dentist"]
-          ["80s" "82-84"]
-          ["90-93" "January 1990"]]
+(deftest using-dates
+  (is (= #{#{"Haircut" "Dentist"}
+           #{"80s" "82-84"}
+           #{"90-93" "January 1990"}}
          (-> events
-             (somewhat-faster-overlapping-events)
-             (just-names))))
-  )
+             even-faster-overlapping-events
+             as-sets
+             just-names))))
