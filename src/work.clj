@@ -159,7 +159,7 @@
 ;; Spec for the function:
 (s/fdef overlapping-events
   :args (s/cat :events (s/coll-of ::event))
-  :ret (s/coll-of ::event)
+  :ret (s/coll-of (s/tuple ::event ::event))
   :fn #(<= 0
            (-> % :ret count)
            (count-two-item-combinations (-> % :args :events))))

@@ -33,7 +33,7 @@
   each event, gathers subsequent overlapping events until an event that does not
   conflict is found."
   [events]
-  (loop [[head & tail] (sort-by #(vector (::start %) (::end %)) events)
+  (loop [[head & tail] (sort-by ::start events)
          pairs []]
     (if (seq tail)
       (recur tail (into pairs
@@ -57,7 +57,7 @@
 
 (defn end-after-start?
   [{:keys [::start ::end]}]
-  (> (compare end start) -1))
+  (> (compare end start) 0))
 
 (s/def ::event (s/and (s/keys :req [::name ::start ::end])
                       end-after-start?))
@@ -75,11 +75,20 @@
   [n]
   (reduce * (range 1 (inc n))))
 
+(s/fdef factorial
+  :args (s/cat :n integer?)
+  :ret integer?)
+
 (defn count-combinations
   [combo-count group-size]
   (/ (factorial group-size)
      (* (factorial combo-count)
         (factorial (- group-size combo-count)))))
+
+(s/fdef count-combinations
+  :args (s/cat :combo-count integer?
+               :group-size integer?)
+  :ret integer?)
 
 (s/fdef brute-force-overlapping-events
   :args (s/cat :events (s/coll-of ::event))
@@ -95,7 +104,7 @@
   [pairs]
   (into #{} (map #(into #{} %) pairs)))
 
-(s/fdef cleaner-overlapping-events
+(s/fdef sort-first-overlapping-events
   :args (s/cat :events (s/coll-of ::event))
   :ret (s/coll-of (s/tuple ::event ::event))
   :fn (s/and

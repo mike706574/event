@@ -8,15 +8,16 @@
                             brute-force-overlapping-events
                             sort-first-overlapping-events]]))
 
-(deftest check-events-overlap?
-  (stest/instrument)
-  (stest/check 'event/events-overlap?)
-  (stest/unstrument))
+(stest/instrument)
 
-(deftest check-overlapping-events
-  (stest/instrument)
-  (stest/check 'event/events-overlap?)
-  (stest/unstrument))
+(deftest check-events-overlap?
+  (stest/check 'event/events-overlap?))
+
+(deftest check-brute-force
+  (stest/check 'event/brute-force-overlapping-events))
+
+(deftest check-sort-first
+  (stest/check 'event/sort-first-overlapping-events))
 
 (defn year
   "Creates a java.util.Date for a specific year."
@@ -48,9 +49,27 @@
   [pairs]
   (into (empty pairs) (map #(into (empty %) (map :event/name %)) pairs)))
 
-(defn as-sets
-  [pairs]
-  (into #{} (map #(into #{} %) pairs)))
+(deftest start-after-end
+  (testing "determining if the end of an event is after its start"
+    (is (event/end-after-start? {::event/name "A"
+                                 ::event/start 1
+                                 ::event/end 2}))
+    (is (not (event/end-after-start? {::event/name "A"
+                                      ::event/start 1
+                                      ::event/end 1})))
+    (is (not (event/end-after-start? {::event/name "A"
+                                      ::event/start 1
+                                      ::event/end 0})))))
+
+(deftest start-after-end
+  (testing "determining if the end of an event is after its start"
+    (is (event/count-combinations 2 0))
+    (is (not (event/end-after-start? {::event/name "A"
+                                      ::event/start 1
+                                      ::event/end 1})))
+    (is (not (event/end-after-start? {::event/name "A"
+                                      ::event/start 1
+                                      ::event/end 0})))))
 
 (deftest detecting-overlapping-events
   (testing "first event starts and ends before second event begins"
@@ -102,7 +121,7 @@
            (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
                 {:event/name "Haircut" :event/start 3 :event/end 4}]
                sort-first-overlapping-events
-               as-sets)))))
+               event/as-sets)))))
 
 (deftest two-events-first-after
   (testing "two events, first event starts after second event ends"
@@ -110,7 +129,7 @@
            (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
                 {:event/name "Haircut" :event/start 1 :event/end 2}]
                sort-first-overlapping-events
-               as-sets)))))
+               event/as-sets)))))
 
 (deftest two-events-first-adjacent
   (testing "first event ends when second event starts"
@@ -118,7 +137,7 @@
            (-> [{:event/name "Dentist" :event/start 1 :event/end 2}
                 {:event/name "Haircut" :event/start 2 :event/end 3}]
                sort-first-overlapping-events
-               as-sets)))))
+               event/as-sets)))))
 
 (deftest two-events-second-adjacent
   (testing "first event starts when second event ends"
@@ -126,7 +145,7 @@
            (-> [{:event/name "Dentist" :event/start 3 :event/end 4}
                 {:event/name "Haircut" :event/start 1 :event/end 2}]
                sort-first-overlapping-events
-               as-sets)))))
+               event/as-sets)))))
 
 (deftest event-overlap-identity
   (testing "an event will always overlap with itself"
@@ -143,7 +162,7 @@
            (-> [{:event/name "Dentist" :event/start 1 :event/end 3}
                 {:event/name "Haircut" :event/start 2 :event/end 4}]
                sort-first-overlapping-events
-               as-sets)))))
+               event/as-sets)))))
 
 (deftest first-starts-during-second
   (testing "first event starts during second event"
@@ -152,7 +171,7 @@
            (-> [{:event/name "Dentist" :event/start 2 :event/end 4}
               {:event/name "Haircut" :event/start 1 :event/end 3}]
                sort-first-overlapping-events
-               as-sets)))))
+               event/as-sets)))))
 
 (deftest four-duplicates
   (testing "four duplicate events produce six overlapping pairs "
@@ -204,18 +223,8 @@
                  #:event{:name "NA5119V07", :start -1, :end 6}
                  #:event{:name "c14z1cp", :start -7, :end 103}]]
     (is
-     (= (-> samples brute-force-overlapping-events as-sets)
-        (-> samples sort-first-overlapping-events as-sets)))))
-
-(deftest sorting-bug
-  (is
-   (= #{#{#:event{:name "C", :start -1, :end 0}
-          #:event{:name "A", :start -1, :end 0}}}
-      (-> [#:event{:name "A", :start -1, :end 0}
-           #:event{:name "B", :start -1, :end -1}
-           #:event{:name "C", :start -1, :end 0}]
-          sort-first-overlapping-events
-          as-sets))))
+     (= (-> samples brute-force-overlapping-events event/as-sets)
+        (-> samples sort-first-overlapping-events event/as-sets)))))
 
 (def events
   [(event "Party" (specific-time 2017 4 13 12 0 0) (specific-time 2017 4 13 14 0 0))
@@ -233,5 +242,5 @@
            #{"90-93" "January 1990"}}
          (-> events
              sort-first-overlapping-events
-             as-sets
+             event/as-sets
              just-names))))
