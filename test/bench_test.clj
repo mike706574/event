@@ -4,18 +4,19 @@
    [clojure.spec.test :as stest]
    [clojure.spec.gen :as gen]
    [clojure.test :refer [deftest testing is]]
+   [criterium.core :as crit]
    [event :as event :refer [brute-force-overlapping-events
                             sort-first-overlapping-events]]))
 
-(comment
+(def rand-event #(gen/generate (s/gen ::event/event)))
+
+(defn bench-both
+  [size]
   (stest/unstrument)
+  (let [events (take size (repeatedly rand-event))]
+    (crit/with-progress-reporting
+      (crit/bench (brute-force-overlapping-events events)))
+    (crit/with-progress-reporting
+      (crit/bench (sort-first-overlapping-events events)))))
 
-  (def rand-event #(gen/generate (s/gen ::event/event)))
-
-  ;; Extremely inadequate "benchmark"
-  (let [fs [brute-force-overlapping-events
-            sort-first-overlapping-events]
-        events (take 1000 (repeatedly rand-event))]
-    (doseq [f fs]
-      (print (with-out-str (time (f events))))))
-  )
+#_ (bench-both 100)
