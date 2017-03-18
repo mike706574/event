@@ -4,6 +4,7 @@
    [clojure.spec.test :as stest]
    [clojure.test :refer [deftest testing is]]
    [event :as event :refer [event
+                            events-overlap?
                             brute-force-overlapping-events
                             sort-first-overlapping-events]]))
 
@@ -50,6 +51,38 @@
 (defn as-sets
   [pairs]
   (into #{} (map #(into #{} %) pairs)))
+
+(deftest detecting-overlapping-events
+  (testing "first event starts and ends before second event begins"
+    (is (not (events-overlap?
+              {:event/name "Dentist" :event/start 1 :event/end 2}
+              {:event/name "Haircut" :event/start 3 :event/end 4}))
+        "When an event ends before another starts, they do not overlap."))
+  (testing "first event starts after second event ends"
+    (is (not (events-overlap?
+              {:event/name "Dentist" :event/start 3 :event/end 4}
+              {:event/name "Haircut" :event/start 1 :event/end 2}))
+        "When an event ends before another starts, they do not overlap."))
+  (testing "first event ends when second event starts"
+    (is (not (events-overlap?
+              {:event/name "Dentist" :event/start 1 :event/end 2}
+              {:event/name "Haircut" :event/start 2 :event/end 3}))
+        "When an event ends at the same time as another starts, they do not overlap."))
+  (testing "first event starts when second event ends"
+    (is (not (events-overlap?
+              {:event/name "Dentist" :event/start 3 :event/end 4}
+              {:event/name "Haircut" :event/start 1 :event/end 2}))
+        "When an event ends at the same time as another starts, they do not overlap."))
+  (testing "first event ends during second event"
+    (is (events-overlap?
+         {:event/name "Dentist" :event/start 1 :event/end 3}
+         {:event/name "Haircut" :event/start 2 :event/end 4})
+        "When an event ends during another, they overlap."))
+  (testing "first event starts during second event"
+    (is (events-overlap?
+         {:event/name "Dentist" :event/start 2 :event/end 4}
+         {:event/name "Haircut" :event/start 1 :event/end 3})
+        "When an event ends during another, they overlap.")))
 
 (deftest no-events
   (testing "no events"
@@ -183,8 +216,6 @@
            #:event{:name "C", :start -1, :end 0}]
           sort-first-overlapping-events
           as-sets))))
-
-
 
 (def events
   [(event "Party" (specific-time 2017 4 13 12 0 0) (specific-time 2017 4 13 14 0 0))
