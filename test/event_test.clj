@@ -3,18 +3,19 @@
    [clojure.spec :as s]
    [clojure.spec.test :as stest]
    [clojure.test :refer [deftest testing is]]
-   [event :as event :refer [overlapping-events
-                            somewhat-faster-overlapping-events
-                            cleaner-overlapping-events]]))
+   [event :as event :refer [brute-force-overlapping-events
+                            sort-first-overlapping-events]]))
 
-(defn new-event
-  "Constructs an event."
-  [nm start end]
-  {:event/name nm :event/start start :event/end end})
 
-(s/fdef new-event
-  :args (s/cat :name :event/name :start :event/start :end :event/end)
-  :ret :event/event)
+(deftest check-events-overlap?
+  (stest/instrument)
+  (stest/check 'event/events-overlap?)
+  (stest/unstrument))
+
+(deftest check-overlapping-events
+  (stest/instrument)
+  (stest/check 'event/events-overlap?)
+  (stest/unstrument))
 
 (defn year
   "Creates a java.util.Date for a specific year."
@@ -42,7 +43,6 @@
   (doseq [[a b] pairs]
     (println (str "Event \"" (:event/name a) "\" conflicts with \"" (:event/name b) "\"."))))
 
-
 (defn just-names
   [pairs]
   (into (empty pairs) (map #(into (empty %) (map :event/name %)) pairs)))
@@ -51,8 +51,6 @@
   [pairs]
   (into #{} (map #(into #{} %) pairs)))
 
-;; NOTE: These tests aren't the greatest in the world - we probably don't
-;; care about the order in which the pairs are returned.
 (deftest no-events
   (testing "no events"
     (is (= []
@@ -138,34 +136,65 @@
               (take 10 (repeat event))))))))
 
 (deftest four-events-two-overlaps
-  (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
-            [(new-event "C" 6 10) (new-event "D" 7 8)]]
+  (testing "four events, two overlapping pairs"
+    (is (= [[(event "A" 1 3) (event "B" 2 4)]
+            [(event "C" 6 10) (event "D" 7 8)]]
            (cleaner-overlapping-events
-            [(new-event "A" 1 3)
-             (new-event "B" 2 4)
-             (new-event "C" 6 10)
-             (new-event "D" 7 8)])))))
+            [(event "A" 1 3)
+             (event "B" 2 4)
+             (event "C" 6 10)
+             (event "D" 7 8)])))))
 
 (deftest four-events-double-overlap
-  (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
-            [(new-event "B" 2 4) (new-event "C" 3 6)]]
+  (testing "four events, two overlapping pairs"
+    (is (= [[(event "A" 1 3) (event "B" 2 4)]
+            [(event "B" 2 4) (event "C" 3 6)]]
            (cleaner-overlapping-events
-            [(new-event "A" 1 3)
-             (new-event "B" 2 4)
-             (new-event "C" 3 6)
-             (new-event "D" 10 12)])))))
+            [(event "A" 1 3)
+             (event "B" 2 4)
+             (event "C" 3 6)
+             (event "D" 10 12)])))))
+
+(deftest implementation-equivalence
+  (let [samples [#:event{:name "Va6YkJR7", :start -17, :end 1}
+                 #:event{:name "3", :start -68, :end -4}
+                 #:event{:name "", :start 14, :end 478}
+                 #:event{:name "91WI6ml", :start -13, :end 1}
+                 #:event{:name "5zEicWF", :start -1, :end 0}
+                 #:event{:name "7", :start -109, :end -1}
+                 #:event{:name "ybgZp6H9", :start -83, :end -13}
+                 #:event{:name "6XO", :start -7, :end 236}
+                 #:event{:name "1RB3i", :start -11, :end -2}
+                 #:event{:name "NP2hciE4", :start -106, :end 0}
+                 #:event{:name "r3", :start -10, :end -5}
+                 #:event{:name "", :start -827, :end 6}
+                 #:event{:name "NA5119V07", :start -1, :end 6}
+                 #:event{:name "c14z1cp", :start -7, :end 103}]]
+    (is
+     (= (-> samples brute-force-overlapping-events as-sets)
+        (-> samples cleaner-overlapping-events as-sets)))))
+
+(deftest sorting-bug
+  (is
+   (= #{#{#:event{:name "C", :start -1, :end 0}
+          #:event{:name "A", :start -1, :end 0}}}
+      (-> [#:event{:name "A", :start -1, :end 0}
+           #:event{:name "B", :start -1, :end -1}
+           #:event{:name "C", :start -1, :end 0}]
+          cleaner-overlapping-events
+          as-sets))))
+
+
 
 (def events
-  [(new-event "Party" (specific-time 2017 4 13 12 0 0) (specific-time 2017 4 13 14 0 0))
-   (new-event "Meeting" (specific-time 2017 3 9 8 30 0) (specific-time 2017 3 9 9 0 0))
-   (new-event "Haircut" (specific-time 2017 3 9 9 15 0) (specific-time 2017 3 9 9 45 0))
-   (new-event "Dentist" (specific-time 2017 3 9 9 0 0) (specific-time 2017 3 9 9 30 0))
-   (new-event "80s" (year 1980) (year 1989))
-   (new-event "82-84" (year 1982) (year 1984))
-   (new-event "90-93" (year 1990) (year 1993))
-   (new-event "January 1990" (day 1990 0 1) (day 1990 0 31))])
+  [(event "Party" (specific-time 2017 4 13 12 0 0) (specific-time 2017 4 13 14 0 0))
+   (event "Meeting" (specific-time 2017 3 9 8 30 0) (specific-time 2017 3 9 9 0 0))
+   (event "Haircut" (specific-time 2017 3 9 9 15 0) (specific-time 2017 3 9 9 45 0))
+   (event "Dentist" (specific-time 2017 3 9 9 0 0) (specific-time 2017 3 9 9 30 0))
+   (event "80s" (year 1980) (year 1989))
+   (event "82-84" (year 1982) (year 1984))
+   (event "90-93" (year 1990) (year 1993))
+   (event "January 1990" (day 1990 0 1) (day 1990 0 31))])
 
 (deftest using-dates
   (is (= #{#{"Haircut" "Dentist"}

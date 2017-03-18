@@ -10,6 +10,8 @@
                             cleaner-overlapping-events]]))
 
 (comment
+  (stest/unstrument)
+
   (def rand-event #(gen/generate (s/gen ::event/event)))
 
   ;; Extremely inadequate "benchmark"

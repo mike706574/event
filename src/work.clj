@@ -6,6 +6,8 @@
    [clojure.spec.test :as stest]
    [clojure.spec.gen :as gen]))
 
+(stest/instrument)
+
 ;; We need to model an event. At this point I would probably go ask the customer
 ;; what exactly an event is, but I'll make some (hopefully reasonable)
 ;; assumptions instead.
@@ -44,6 +46,7 @@
 (s/def ::name (s/and string? #(<= 1 (count %) 40)))
 (s/def ::start integer?)
 (s/def ::end integer?)
+
 (defn end-after-start?
   [{:keys [::start ::end]}]
   (> (compare end start) -1))
@@ -115,6 +118,12 @@
   (and (neg? (compare start-1 end-2))
        (neg? (compare start-2 end-1))))
 
+(defn events-overlap?
+  [{start-1 ::start end-1 ::end} {start-2 ::start end-2 ::end}]
+  (and (neg? (compare start-1 end-2))
+       (neg? (compare start-2 end-1))))
+
+
 ;; We can also test with test.check:
 ;; (stest/check `events-overlap?)
 ;; => ({:spec
@@ -149,11 +158,11 @@
 
 ;; Spec for the function:
 (s/fdef overlapping-events
-  :args (s/coll-of ::event)
+  :args (s/cat :events (s/coll-of ::event))
   :ret (s/coll-of ::event)
   :fn #(<= 0
-           (-> % :args :game count)
-           (count-two-item-combinations (-> % :args count))))
+           (-> % :ret count)
+           (count-two-item-combinations (-> % :args :events))))
 
 ;; Another assumption needs to be made here: if two events have the same name,
 ;; are they two different events?
@@ -171,12 +180,12 @@
 (defn pairs
   [coll]
   (loop [[head & tail] coll
-         pairs (list)]
+         pairs []]
     (if (nil? tail)
       pairs
       (recur tail (apply conj
                          pairs
-                         (map #(list head %) tail))))))
+                         (map #(vector head %) tail))))))
 
 ;; Check it:
 (pairs [1 1 1])
@@ -190,106 +199,119 @@
   [nm start end]
   {::name nm ::start start ::end end})
 
-;; Write some tests by hand.
+(defn just-names
+  [pairs]
+  (into (empty pairs) (map #(into (empty %) (map ::name %)) pairs)))
 
-;; NOTE: These tests aren't the greatest in the world - we probably don't
-;; care about the order in which the pairs are returned, but we're asserting
-;; it here.
-(deftest finding-find--overlapping-events
+(defn as-sets
+  [pairs]
+  (into #{} (map #(into #{} %) pairs)))
+
+;; Write some tests by hand.
+(deftest no-events
   (testing "no events"
     (is (= []
            (overlapping-events []))
-        "When there are no events, nothing will overlap."))
+        "When there are no events, nothing will overlap.")))
 
+(deftest one-event
   (testing "one event"
     (is (= []
            (overlapping-events [{::name "Dentist" ::start 1 ::end 2}]))
-        "When there is only one event, it has no other events to overlap with."))
+        "When there is only one event, it has no other events to overlap with.")))
 
+(deftest two-events-first-before
   (testing "two events, first event starts and ends before second event begins"
-    (is (= []
-           (overlapping-events
-            [{::name "Dentist" ::start 1 ::end 2}
-             {::name "Haircut" ::start 3 ::end 4}]))))
+    (is (= #{}
+           (-> [{::name "Dentist" ::start 1 ::end 2}
+                {::name "Haircut" ::start 3 ::end 4}]
+               overlapping-events
+               as-sets)))))
 
+(deftest two-events-first-after
   (testing "two events, first event starts after second event ends"
-    (is (= []
-           (overlapping-events
-            [{::name "Dentist" ::start 3 ::end 4}
-             {::name "Haircut" ::start 1 ::end 2}]))))
+    (is (= #{}
+           (-> [{::name "Dentist" ::start 3 ::end 4}
+                {::name "Haircut" ::start 1 ::end 2}]
+               overlapping-events
+               as-sets)))))
 
+(deftest two-events-first-adjacent
   (testing "first event ends when second event starts"
-    (is (= []
-           (overlapping-events
-            [{::name "Dentist" ::start 1 ::end 2}
-             {::name "Haircut" ::start 2 ::end 3}]))))
+    (is (= #{}
+           (-> [{::name "Dentist" ::start 1 ::end 2}
+                {::name "Haircut" ::start 2 ::end 3}]
+               overlapping-events
+               as-sets)))))
 
+(deftest two-events-second-adjacent
   (testing "first event starts when second event ends"
-    (is (= []
-           (overlapping-events
-            [{::name "Dentist" ::start 3 ::end 4}
-             {::name "Haircut" ::start 1 ::end 2}]))))
+    (is (= #{}
+           (-> [{::name "Dentist" ::start 3 ::end 4}
+                {::name "Haircut" ::start 1 ::end 2}]
+               overlapping-events
+               as-sets)))))
 
+(deftest event-overlap-identity
   (testing "an event will always overlap with itself"
     (is (= [[{::name "Dentist" ::start 1 ::end 2}
              {::name "Dentist" ::start 1 ::end 2}]]
            (overlapping-events
             [{::name "Dentist" ::start 1 ::end 2}
-             {::name "Dentist" ::start 1 ::end 2}]))))
+             {::name "Dentist" ::start 1 ::end 2}])))))
 
+(deftest first-ends-during-second
   (testing "first event ends during second event"
-    (is (= [[{::name "Dentist" ::start 1 ::end 3}
-             {::name "Haircut" ::start 2 ::end 4}]]
-           (overlapping-events
-            [{::name "Dentist" ::start 1 ::end 3}
-             {::name "Haircut" ::start 2 ::end 4}]))))
+    (is (= #{#{{::name "Dentist" ::start 1 ::end 3}
+               {::name "Haircut" ::start 2 ::end 4}}}
+           (-> [{::name "Dentist" ::start 1 ::end 3}
+                {::name "Haircut" ::start 2 ::end 4}]
+               overlapping-events
+               as-sets)))))
 
-
+(deftest first-starts-during-second
   (testing "first event starts during second event"
-    (is (= [[{::name "Dentist" ::start 2 ::end 4}
-             {::name "Haircut" ::start 1 ::end 3}]]
-           (overlapping-events
-            [{::name "Dentist" ::start 2 ::end 4}
-             {::name "Haircut" ::start 1 ::end 3}]))))
+    (is (= #{#{{::name "Dentist" ::start 2 ::end 4}
+               {::name "Haircut" ::start 1 ::end 3}}}
+           (-> [{::name "Dentist" ::start 2 ::end 4}
+                {::name "Haircut" ::start 1 ::end 3}]
+               overlapping-events
+               as-sets)))))
 
+(deftest four-duplicates
   (testing "four duplicate events produce six overlapping pairs "
     (let [event {::name "Dentist" ::start 2 ::end 4}]
       (is (= (take 6 (repeat [event event]))
              (overlapping-events
-              (take 4 (repeat event)))))))
+              (take 4 (repeat event))))))))
 
+(deftest ten-duplicates
   (testing "ten duplicate events produce forty-five overlapping pairs "
     (let [event {::name "Dentist" ::start 2 ::end 4}]
       (is (= (take 45 (repeat [event event]))
              (overlapping-events
-              (take 10 (repeat event)))))))
+              (take 10 (repeat event))))))))
 
-  (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "C" 6 10) (new-event "D" 7 8)]
-            [(new-event "A" 1 3) (new-event "B" 2 4)]]
+(deftest four-events-two-overlaps
+  (testing "four events, two overlapping pairs"
+    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
+            [(new-event "C" 6 10) (new-event "D" 7 8)]]
            (overlapping-events
             [(new-event "A" 1 3)
              (new-event "B" 2 4)
              (new-event "C" 6 10)
-             (new-event "D" 7 8)]))))
+             (new-event "D" 7 8)])))))
 
-  (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "B" 2 4) (new-event "C" 3 6)]
-            [(new-event "A" 1 3) (new-event "B" 2 4)]]
-           (overlapping-events
-            [(new-event "A" 1 3)
-             (new-event "B" 2 4)
-             (new-event "C" 3 6)
-             (new-event "D" 10 12)]))))
-
-  (testing "fours events, two overlapping pairs"
-    (is (= [[(new-event "B" 2 4) (new-event "C" 3 6)]
-            [(new-event "A" 1 3) (new-event "B" 2 4)]]
+(deftest four-events-double-overlap
+  (testing "four events, two overlapping pairs"
+    (is (= [[(new-event "A" 1 3) (new-event "B" 2 4)]
+            [(new-event "B" 2 4) (new-event "C" 3 6)]]
            (overlapping-events
             [(new-event "A" 1 3)
              (new-event "B" 2 4)
              (new-event "C" 3 6)
              (new-event "D" 10 12)])))))
+
 
 ;; Here's the final function:
 (defn overlapping-events
@@ -300,6 +322,7 @@
    (pairs events)))
 
 ;; Now, we'll try it out with java.util.Dates instead of numbers.
+(stest/unstrument)
 
 (defn year
   "Creates a java.util.Date for a specific year."
