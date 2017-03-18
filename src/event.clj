@@ -10,7 +10,9 @@
        (neg? (compare start-2 end-1))))
 
 (defn brute-force-overlapping-events
-  "Given a sequence of events, returns all pairs of overlapping events."
+  "Given a sequence of events, returns all pairs of overlapping events.
+
+  Checks if all possible pairs of events overlap."
   [events]
   (loop [[head & tail] events
          pairs []]
@@ -25,7 +27,11 @@
                                tail))))))
 
 (defn sort-first-overlapping-events
-  "Given a sequence of events, returns all pairs of overlapping events."
+  "Given a sequence of events, returns all pairs of overlapping events.
+
+  Sorts the events by start time and end time, then iterates through them. For
+  each event, gathers subsequent overlapping events until an event that does not
+  conflict is found."
   [events]
   (loop [[head & tail] (sort-by #(vector (::start %) (::end %)) events)
          pairs []]
