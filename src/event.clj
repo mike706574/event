@@ -81,7 +81,7 @@
      (* (factorial combo-count)
         (factorial (- group-size combo-count)))))
 
-(s/fdef brute-forceoverlapping-events
+(s/fdef brute-force-overlapping-events
   :args (s/cat :events (s/coll-of ::event))
   :ret (s/coll-of (s/tuple ::event ::event))
   :fn #(<= 0
